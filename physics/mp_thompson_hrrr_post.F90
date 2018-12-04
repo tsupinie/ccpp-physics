@@ -110,6 +110,7 @@ contains
       ! Local variables
       real(kind_phys), dimension(1:ncol,1:nlev) :: mp_tend
       integer :: i, k
+      integer :: events
 
       ! Initialize the CCPP error handling variables
       errmsg = ''
@@ -125,18 +126,25 @@ contains
       ! mp_tend and mp_tend_lim are expressed in potential temperature
       mp_tend = (tgrs - tgrs_save)/prslk
 
+      events = 0
       do k=1,nlev
          do i=1,ncol
             mp_tend(i,k) = max( -mp_tend_lim(i)*dtp, min( mp_tend_lim(i)*dtp, mp_tend(i,k) ) )
-            ! DH*
-            if ( mpirank==mpiroot .and. (tgrs_save(i,k) + mp_tend(i,k)*prslk(i,k) .ne. tgrs(i,k)) ) then
-               write(0,*) "DH DEBUG mp_thompson_hrrr_post_run mp_tend limiter: i, k, t_old, t_new, t_lim:", &
+
+            if (tgrs_save(i,k) + mp_tend(i,k)*prslk(i,k) .ne. tgrs(i,k)) then
+#ifdef DEBUG
+              write(0,*) "mp_thompson_hrrr_post_run mp_tend limiter: i, k, t_old, t_new, t_lim:", &
                                   & i, k, tgrs_save(i,k), tgrs(i,k), tgrs_save(i,k) + mp_tend(i,k)*prslk(i,k)
+#endif
+              events = events + 1
             end if
-            ! *DH
             tgrs(i,k) = tgrs_save(i,k) + mp_tend(i,k)*prslk(i,k)
          end do
       end do
+
+      if (events > 0) then
+        write(0,'(a,i0,a,i0,a)') "mp_thompson_hrrr_post_run: mp_tend_lim applied ", events, "/", nlev*ncol, " times"
+      end if
 
    end subroutine mp_thompson_hrrr_post_run
 

@@ -946,6 +946,14 @@ MODULE module_mp_thompson_hrrr
 
       end if precomputed_tables_2
 
+      ! DH* TEMPORARY GUARD 20181203
+      if (minval(tnccn_act)==maxval(tnccn_act)) then
+        write(0,*) "TEMPORARY GUARD: abort model because table_ccnact seems to be faulty."
+        call sleep(5)
+        stop
+      end if
+      ! *DH
+
       endif if_not_iiwarm
 
       WRITE (*,*) ' ... DONE microphysical lookup tables'
@@ -4710,10 +4718,18 @@ MODULE module_mp_thompson_hrrr
  9009 CONTINUE
       WRITE( errmess , '(A,I2)' ) 'module_mp_thompson: error opening CCN_ACTIVATE.BIN on unit ',iunit_mp_th1
       write(0,*) errmess
+      ! DH* TEMPORARY FIX 20181203
+      call sleep(5)
+      stop
+      ! *DH
       RETURN
  9010 CONTINUE
       WRITE( errmess , '(A,I2)' ) 'module_mp_thompson: error reading CCN_ACTIVATE.BIN on unit ',iunit_mp_th1
       write(0,*) errmess
+      ! DH* TEMPORARY FIX 20181203
+      call sleep(5)
+      stop
+      ! *DH
       RETURN
 
       end subroutine table_ccnAct

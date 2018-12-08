@@ -142,7 +142,7 @@ contains
          end do
       end do
 
-      if (events > 0) then
+      if (events > 0.1*(ncol*nlev)) then
         write(0,'(a,i0,a,i0,a)') "mp_thompson_hrrr_post_run: mp_tend_lim applied ", events, "/", nlev*ncol, " times"
       end if
 

@@ -5589,7 +5589,13 @@ ENDIF
     !        & -dtz(k)*s_awthl(kts+1) + diss_heat(k)*delt*dheat_opt
     ! So, s_awthl(kts+1) must be less than flt
     THVk = (THL(kts)*DZ(kts+1)+THL(kts+1)*DZ(kts))/(DZ(kts+1)+DZ(kts))
-    flx1 = MAX(s_aw(kts+1)*(s_awthl(kts+1)/s_aw(kts+1) - THVk),0.0)
+    ! DH*
+    if (s_aw(kts+1).ne.0) then
+        flx1 = MAX(s_aw(kts+1)*(s_awthl(kts+1)/s_aw(kts+1) - THVk),0.0)
+    else
+        flx1 = 0.0
+    end if
+    ! *DH
     !flx1 = -dt/dz(kts)*s_awthl(kts+1)
     !flx1 = (s_awthl(kts+1)-s_awthl(kts))!/(0.5*(dz(k)+dz(k-1)))
     adjustment=1.0

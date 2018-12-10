@@ -1939,7 +1939,7 @@ contains
          do k = ktop(i), 1, -1
               rain =  pwo(i,k) + edto(i) * pwdo(i,k)
               rn(i) = rn(i) + rain * xmb(i) * .001 * dtime
-            if(po(i,k).gt.700.)then
+            !if(po(i,k).gt.700.)then
               if(flg(i))then
               q1=qo(i,k)+(outq(i,k))*dtime
               t1=tn(i,k)+(outt(i,k))*dtime
@@ -1964,7 +1964,7 @@ contains
                 pre(i)=max(pre(i),0.)
                 delqev(i) = delqev(i) + .001*dp*qevap(i)/g
               endif
-            endif ! 700mb
+            !endif ! 700mb
           endif
         enddo
 !       pre(i)=1000.*rn(i)/dtime

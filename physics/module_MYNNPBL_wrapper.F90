@@ -109,6 +109,7 @@
 !! | do_mynnsfclay               | do_mynnsfclay                                                                | flag to activate MYNN surface layer                                        | flag          |    0 | logical   |           | in     | F        |
 !! | imp_physics                 | flag_for_microphysics_scheme                                                 | choice of microphysics scheme                                              | flag          |    0 | integer   |           | in     | F        |
 !! | imp_physics_gfdl            | flag_for_gfdl_microphysics_scheme                                            | choice of GFDL microphysics scheme                                         | flag          |    0 | integer   |           | in     | F        |
+!! | imp_physics_nssl            | flag_for_nssl_microphysics_scheme                                            | choice of NSSL microphysics scheme                                         | flag          |    0 | integer   |           | in     | F        |
 !! | imp_physics_thompson        | flag_for_thompson_microphysics_scheme                                        | choice of Thompson microphysics scheme                                     | flag          |    0 | integer   |           | in     | F        |
 !! | imp_physics_wsm6            | flag_for_wsm6_microphysics_scheme                                            | choice of WSM6 microphysics scheme                                         | flag          |    0 | integer   |           | in     | F        |
 !! | ltaerosol                   | flag_for_aerosol_physics                                                     | flag for aerosol physics                                                   | flag          |    0 | logical   |           | in     | F        |
@@ -156,7 +157,7 @@ SUBROUTINE mynnedmf_wrapper_run(        &
      &  bl_mynn_edmf, bl_mynn_edmf_mom, bl_mynn_edmf_tke,  &
      &  bl_mynn_edmf_part, bl_mynn_cloudmix, bl_mynn_mixqt,&
      &  icloud_bl, do_mynnsfclay,                          &
-     &  imp_physics, imp_physics_gfdl,                     &
+     &  imp_physics, imp_physics_gfdl, imp_physics_nssl,   &
      &  imp_physics_thompson, imp_physics_wsm6,            &
      &  ltaerosol, lprnt, errmsg, errflg  )
 
@@ -263,7 +264,7 @@ SUBROUTINE mynnedmf_wrapper_run(        &
      &       bl_mynn_tkebudget,                             &
      &       grav_settling,                                 &
      &       imp_physics, imp_physics_wsm6,                 &
-     &       imp_physics_thompson, imp_physics_gfdl
+     &       imp_physics_thompson, imp_physics_gfdl, imp_physics_nssl
 
 !MISC CONFIGURATION OPTIONS
       INTEGER, PARAMETER ::                                 &
@@ -455,7 +456,7 @@ SUBROUTINE mynnedmf_wrapper_run(        &
               enddo
             enddo
           endif
-        elseif (imp_physics == imp_physics_gfdl) then
+        elseif (imp_physics == imp_physics_gfdl .or. imp_physics == imp_physics_nssl) then
   ! GFDL MP
           FLAG_QI = .true.
           FLAG_QNI= .false.

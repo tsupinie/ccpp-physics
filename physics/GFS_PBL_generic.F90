@@ -35,6 +35,7 @@
 !! | ntkev                        | index_for_turbulent_kinetic_energy_vertical_diffusion_tracer | index for turbulent kinetic energy in the vertically diffused tracer array    | index         |    0 | integer   |           | in     | F        |
 !! | imp_physics                  | flag_for_microphysics_scheme                           | choice of microphysics scheme                                                       | flag          |    0 | integer   |           | in     | F        |
 !! | imp_physics_gfdl             | flag_for_gfdl_microphysics_scheme                      | choice of GFDL microphysics scheme                                                  | flag          |    0 | integer   |           | in     | F        |
+!! | imp_physics_nssl             | flag_for_nssl_microphysics_scheme                      | choice of NSSL microphysics scheme                                                  | flag          |    0 | integer   |           | in     | F        |
 !! | imp_physics_thompson         | flag_for_thompson_microphysics_scheme                  | choice of Thompson microphysics scheme                                              | flag          |    0 | integer   |           | in     | F        |
 !! | imp_physics_wsm6             | flag_for_wsm6_microphysics_scheme                      | choice of WSM6 microphysics scheme                                                  | flag          |    0 | integer   |           | in     | F        |
 !! | imp_physics_zhao_carr        | flag_for_zhao_carr_microphysics_scheme                 | choice of Zhao-Carr microphysics scheme                                             | flag          |    0 | integer   |           | in     | F        |
@@ -51,7 +52,7 @@
 #endif
       subroutine GFS_PBL_generic_pre_run (im, levs, nvdiff, ntrac,                       &
         ntqv, ntcw, ntiw, ntrw, ntsw, ntlnc, ntinc, ntwa, ntia, ntgl, ntoz, ntke, ntkev, &
-        imp_physics, imp_physics_gfdl, imp_physics_thompson, imp_physics_wsm6,           &
+        imp_physics, imp_physics_gfdl, imp_physics_nssl, imp_physics_thompson, imp_physics_wsm6,           &
         imp_physics_zhao_carr, cplchm, ltaerosol, hybedmf, do_shoc, satmedmf,            &
         qgrs, vdftra, errmsg, errflg)
 
@@ -61,7 +62,7 @@
 
       integer, intent(in) :: im, levs, nvdiff, ntrac
       integer, intent(in) :: ntqv, ntcw, ntiw, ntrw, ntsw, ntlnc, ntinc, ntwa, ntia, ntgl, ntoz, ntke, ntkev
-      integer, intent(in) :: imp_physics, imp_physics_gfdl, imp_physics_thompson, imp_physics_wsm6
+      integer, intent(in) :: imp_physics, imp_physics_gfdl, imp_physics_nssl, imp_physics_thompson, imp_physics_wsm6
       integer, intent(in) :: imp_physics_zhao_carr
       logical, intent(in) :: cplchm, ltaerosol, hybedmf, do_shoc, satmedmf
 

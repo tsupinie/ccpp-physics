@@ -403,6 +403,8 @@
             print *,'   --- WSM6 cloud microphysics'
           elseif (imp_physics == 10) then
             print *,'   --- MG cloud microphysics'
+          elseif (imp_physics == 17) then
+            print *,'   --- NSSL cloud microphysics'
           else
             print *,'  !!! ERROR in cloud microphysc specification!!!', &
      &              '  imp_physics (NP3D) =',imp_physics

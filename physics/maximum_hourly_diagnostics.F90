@@ -32,6 +32,7 @@ contains
 !! | imp_physics          | flag_for_microphysics_scheme                                       | choice of microphysics scheme                                      | flag       |    0 | integer   |           | in     | F        |
 !! | imp_physics_gfdl     | flag_for_gfdl_microphysics_scheme                                  | choice of GFDL microphysics scheme                                 | flag       |    0 | integer   |           | in     | F        |
 !! | imp_physics_thompson | flag_for_thompson_microphysics_scheme                              | choice of Thompson microphysics scheme                             | flag       |    0 | integer   |           | in     | F        |
+!! | imp_physics_nssl     | flag_for_nssl_microphysics_scheme                                  | choice of NSSL microphysics scheme                                 | flag       |    0 | integer   |           | in     | F        |
 !! | con_g                | gravitational_acceleration                                         | gravitational acceleration                                         | m s-2      |    0 | real      | kind_phys | in     | F        |
 !! | phil                 | geopotential                                                       | geopotential at model layer centers                                | m2 s-2     |    2 | real      | kind_phys | in     | F        |
 !! | gt0                  | air_temperature_updated_by_physics                                 | temperature updated by physics                                     | K          |    2 | real      | kind_phys | in     | F        |
@@ -55,15 +56,16 @@ contains
 !!
 #endif
    subroutine maximum_hourly_diagnostics_run(im, levs, kdt, nsteps_per_reset, lradar, imp_physics, &
-                                             imp_physics_gfdl, imp_physics_thompson, con_g, phil,  &
-                                             gt0, refl_10cm, refdmax, refdmax263k, u10m, v10m,     &
-                                             u10max, v10max, spd10max, pgr, t2m, q2m, t02max,      &
-                                             t02min, rh02max, rh02min, errmsg, errflg)
+                                             imp_physics_gfdl, imp_physics_thompson,               &
+                                             imp_physics_nssl, con_g, phil, gt0, refl_10cm,        &
+                                             refdmax, refdmax263k, u10m, v10m, u10max, v10max,     &
+                                             spd10max, pgr, t2m, q2m, t02max, t02min, rh02max,     &
+                                             rh02min, errmsg, errflg)
 
        ! Interface variables
        integer, intent(in) :: im, levs, kdt, nsteps_per_reset
        logical, intent(in) :: lradar
-       integer, intent(in) :: imp_physics, imp_physics_gfdl, imp_physics_thompson
+       integer, intent(in) :: imp_physics, imp_physics_gfdl, imp_physics_thompson, imp_physics_nssl
        real(kind_phys), intent(in   ) :: con_g
        real(kind_phys), intent(in   ) :: phil(im,levs)
        real(kind_phys), intent(in   ) :: gt0(im,levs)
@@ -97,7 +99,8 @@ contains
        kdtminus1 = kdt-1
 
 !Calculate hourly max 1-km agl and -10C reflectivity
-       if (lradar .and. (imp_physics == imp_physics_gfdl .or. imp_physics == imp_physics_thompson)) then
+       if (lradar .and. (imp_physics == imp_physics_gfdl .or. imp_physics == imp_physics_thompson &
+                    .or. imp_physics == imp_physics_nssl)) then
           allocate(refd(im))
           allocate(refd263k(im))
           call max_fields(phil,refl_10cm,con_g,im,levs,refd,gt0,refd263k)

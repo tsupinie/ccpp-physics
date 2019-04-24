@@ -137,8 +137,10 @@ contains
           allocate(hm03(im))
 
           call max_fields(phil,refl_10cm,con_g,im,levs,refd,gt0,refd263k)
-          call hail_diagnostics(im, mesh, hmflux01, hske01, shcp01, hm01,  &
-                                          hmflux03, hske03, shcp03, hm03)
+          call hail_diagnostics(im, levs, gt0, phil / con_g, refl_10cm,  &
+                                mesh, hmflux01, hske01, shcp01, hm01,  &
+                                      hmflux03, hske03, shcp03, hm03)
+
           if(mod(kdtminus1,nsteps_per_reset)==0)then
              do i=1,im
                refdmax(i) = -35.
@@ -173,6 +175,7 @@ contains
              shcp03max(i) = max(shcp03max(i),shcp03(i))
              hm03max(i) = max(hm03max(i),hm03(i))
           enddo
+
           deallocate (refd) 
           deallocate (refd263k)
           deallocate (mesh)
@@ -184,7 +187,6 @@ contains
           deallocate (hske03)
           deallocate (shcp03)
           deallocate (hm03)
-
        endif
 !
        if(mod(kdtminus1,nsteps_per_reset)==0)then
@@ -316,15 +318,18 @@ contains
       enddo
    end subroutine max_fields
 
-   subroutine hail_diagnostics(im, mesh, hmflux01, hske01, shcp01, hm01, &
-                                         hmflux03, hske03, shcp03, hm03)
+   subroutine hail_diagnostics(im, levs, temperature, zh, refl_10cm, &
+                               mesh, hmflux01, hske01, shcp01, hm01, &
+                                     hmflux03, hske03, shcp03, hm03)
 
-     integer, intent(in) :: im
+     integer, intent(in) :: im, levs
+     real(kind=kind_phys), dimension(im, levs) :: temperature, zh, refl_10cm
      real(kind=kind_phys), dimension(im), intent(out) :: mesh
      real(kind=kind_phys), dimension(im), intent(out) :: hmflux01, hske01, shcp01, hm01
      real(kind=kind_phys), dimension(im), intent(out) :: hmflux03, hske03, shcp03, hm03
 
-     mesh = 0.0
+     call calc_mesh(im, levs, zh, temperature, refl_10cm, mesh)
+
      hmflux01 = 0.0
      hske01 = 0.0
      shcp01 = 0.0
@@ -372,10 +377,7 @@ contains
       END FUNCTION WGAMMA
 !+---+-----------------------------------------------------------------+ 
 
-  SUBROUTINE calc_mesh(ids,ide, jds,jde, kds,kde,                      &
-                       ims,ime, jms,jme, kms,kme,                      &
-                       ips,ipe, jps,jpe, kps,kpe,                      & ! patch  dims
-                       zh, temperature, refl, mesh)
+  SUBROUTINE calc_mesh(im, levs, zh, temperature, refl, mesh)
  
   !
   !-----------------------------------------------------------------------
@@ -389,8 +391,8 @@ contains
   !
   !  AUTHOR: N. Snook
   !  4/20/2017
-  !  Ported to WRF by T. Supinie
-  !  10/17/2017
+  !  Ported to FV3 by T. Supinie
+  !  4/23/2019
   !
   !-----------------------------------------------------------------------
   !
@@ -416,27 +418,25 @@ contains
   IMPLICIT NONE
 
   !Inputs
-  INTEGER, INTENT(IN) :: ids,ide, jds,jde, kds,kde, &
-                         ims,ime, jms,jme, kms,kme, &
-                         ips,ipe, jps,jpe, kps,kpe
+  INTEGER, INTENT(IN) :: im, levs
 
-  REAL, INTENT(IN) :: zh(ims:ime, kms:kme, jms:jme) ! Height
+  REAL(kind=kind_phys), INTENT(IN) :: zh(im, levs) ! Height
 
-  REAL, INTENT(IN) :: refl(ims:ime, kms:kme, jms:jme) !Radar reflectivity (dBZ)
-  REAL, INTENT(IN) :: temperature(ims:ime, kms:kme, jms:jme) !Air temperature (K)
+  REAL(kind=kind_phys), INTENT(IN) :: refl(im, levs) !Radar reflectivity (dBZ)
+  REAL(kind=kind_phys), INTENT(IN) :: temperature(im, levs) !Air temperature (K)
   
 
   ! TAS: Could optimize somewhat by making these scalars, but maybe not worth it.
-  REAL :: hgt_0(ims:ime, jms:jme), hgt_neg20(ims:ime, jms:jme) !Height of 0C and -20C layers (m)
-  REAL :: wgt_refl(kms:kme), wgt_temp(kms:kme) !reflectivity and temperature weighting functions
-  REAL :: hke(kms:kme)   !hail kinetic energy (Witt et al. 1998)
+  REAL :: hgt_0(im), hgt_neg20(im) !Height of 0C and -20C layers (m)
+  REAL :: wgt_refl(levs), wgt_temp(levs) !reflectivity and temperature weighting functions
+  REAL :: hke(levs)   !hail kinetic energy (Witt et al. 1998)
   REAL :: shi       !severe hail index (Witt et al. 1998)
   REAL :: zps, last_zps
 
-  REAL, INTENT(OUT) :: mesh(ims:ime, jms:jme) !Maximum estimated size of hail (in mm)
+  REAL(kind=kind_phys), INTENT(OUT) :: mesh(im) !Maximum estimated size of hail (in mm)
 
   !Needed for logical and loop operations
-  INTEGER :: ix, jy, kz  !loop iterators for x, y, and z dimensions
+  INTEGER :: ix, kz  !loop iterators for x, y, and z dimensions
   REAL :: colmax  !storage for maximum value in a column
   LOGICAL :: found_h0, found_hneg20  !flags for freezing level and -20C level
 
@@ -445,81 +445,79 @@ contains
   !-------------------------------------
 
   !Calculation of MESH is done column by column
-  DO ix=ims, ime
-      DO jy=jms, jme
-          !(Re)set freezing and -20C layer flags
-          found_h0 = .FALSE.
-          found_hneg20 = .FALSE.
+  DO ix=1, im
+      !(Re)set freezing and -20C layer flags
+      found_h0 = .FALSE.
+      found_hneg20 = .FALSE.
   
-          !If maximum Z in a column is less than 40 dBZ, MESH = 0
-          colmax = 0.0
-          DO kz=kms, kme
-              colmax = MAX(refl(ix, kz, jy), colmax)
-          END DO
-          IF (colmax < 40.0) THEN
-              mesh(ix, jy) = 0.0
-          !Otherwise, calculate MESH from temperature and reflectivity using weight functions
-          ELSE
-              DO kz=kms+1, kme
-                  zps = zh(ix, kz, jy)
-
-                  !Calculate height of freezing layer and -20C isotherm
-                  IF ((temperature(ix, kz, jy) <= 273.15) .AND. (found_h0 .EQV. .FALSE.)) THEN
-                      hgt_0(ix, jy) = zps
-                      found_h0 = .TRUE.
-                  END IF
-                  IF ((temperature(ix, kz, jy) <= 253.15) .AND. (found_hneg20 .EQV. .FALSE.)) THEN
-                      hgt_neg20(ix, jy) = zps
-                      found_hneg20 = .TRUE.
-                  END IF
-              END DO
-
-              shi = 0.0
-              last_zps = zh(ix, kms, jy)
-
-              DO kz=kms+1, kme
-
-                  !Calculate reflectivity weighting
-                  IF (refl(ix, kz, jy) < 40.0) THEN
-                      wgt_refl(kz) = 0.0
-                  ELSE IF (refl(ix, kz, jy) > 50.0) THEN
-                      wgt_refl(kz) = 1.0
-                  ELSE
-                      wgt_refl(kz) = (refl(ix, kz, jy) - 40.0) / 10.0
-                  END IF
-                
-                  !Calculate HKE
-                  IF (refl(ix, kz, jy) < 40.0) THEN
-                      hke(kz) = 0.0
-                  ELSE
-                      hke(kz) = 0.000005 * (10.0 ** (0.084 * refl(ix, kz, jy))) * wgt_refl(kz)
-                  END IF
-
-                  zps = zh(ix, kz, jy)
-
-                  !Calculate temperature weighting function wgt_temp
-                  IF (zps < hgt_0(ix, jy)) THEN
-                      wgt_temp(kz) = 0.0
-                  ELSE IF (zps >= hgt_neg20(ix, jy)) THEN
-                      wgt_temp(kz) = 1.0
-                  ELSE
-                      wgt_temp(kz) = (zps - hgt_0(ix, jy)) /                      &
-                                     (hgt_neg20(ix, jy) - hgt_0(ix, jy))
-                  END IF
-                  !Calculate severe hail index (shi) contribution for this level
-                  shi = shi + 0.1 * (wgt_temp(kz) * hke(kz) * (zps - last_zps))
-
-                  last_zps = zps
-              END DO
-            
-              !Calculate MESH (units are mm) using Witt. et al. (1998) formula:
-              IF (shi <= 0.0) THEN
-                  mesh(ix, jy) = 0.0
-              ELSE
-                  mesh(ix, jy) = 2.54 * (shi ** 0.5)
-              END IF
-          END IF
+      !If maximum Z in a column is less than 40 dBZ, MESH = 0
+      colmax = 0.0
+      DO kz=1, levs
+          colmax = MAX(refl(ix, kz), colmax)
       END DO
+      IF (colmax < 40.0) THEN
+          mesh(ix) = 0.0
+      !Otherwise, calculate MESH from temperature and reflectivity using weight functions
+      ELSE
+          DO kz=2, levs
+              zps = zh(ix, kz)
+
+              !Calculate height of freezing layer and -20C isotherm
+              IF ((temperature(ix, kz) <= 273.15) .AND. (found_h0 .EQV. .FALSE.)) THEN
+                  hgt_0(ix) = zps
+                  found_h0 = .TRUE.
+              END IF
+              IF ((temperature(ix, kz) <= 253.15) .AND. (found_hneg20 .EQV. .FALSE.)) THEN
+                  hgt_neg20(ix) = zps
+                  found_hneg20 = .TRUE.
+              END IF
+          END DO
+
+          shi = 0.0
+          last_zps = zh(ix, 1)
+
+          DO kz=2, levs
+
+              !Calculate reflectivity weighting
+              IF (refl(ix, kz) < 40.0) THEN
+                  wgt_refl(kz) = 0.0
+              ELSE IF (refl(ix, kz) > 50.0) THEN
+                  wgt_refl(kz) = 1.0
+              ELSE
+                  wgt_refl(kz) = (refl(ix, kz) - 40.0) / 10.0
+              END IF
+            
+              !Calculate HKE
+              IF (refl(ix, kz) < 40.0) THEN
+                  hke(kz) = 0.0
+              ELSE
+                  hke(kz) = 0.000005 * (10.0 ** (0.084 * refl(ix, kz))) * wgt_refl(kz)
+              END IF
+
+              zps = zh(ix, kz)
+
+              !Calculate temperature weighting function wgt_temp
+              IF (zps < hgt_0(ix)) THEN
+                  wgt_temp(kz) = 0.0
+              ELSE IF (zps >= hgt_neg20(ix)) THEN
+                  wgt_temp(kz) = 1.0
+              ELSE
+                  wgt_temp(kz) = (zps - hgt_0(ix)) /                      &
+                                 (hgt_neg20(ix) - hgt_0(ix))
+              END IF
+              !Calculate severe hail index (shi) contribution for this level
+              shi = shi + 0.1 * (wgt_temp(kz) * hke(kz) * (zps - last_zps))
+
+              last_zps = zps
+          END DO
+
+          !Calculate MESH (units are mm) using Witt. et al. (1998) formula:
+          IF (shi <= 0.0) THEN
+              mesh(ix) = 0.0
+          ELSE
+              mesh(ix) = 2.54 * (shi ** 0.5)
+          END IF
+      END IF
   END DO
 
   END SUBROUTINE calc_mesh

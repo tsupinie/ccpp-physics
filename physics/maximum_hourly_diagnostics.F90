@@ -33,9 +33,17 @@ contains
 !! | imp_physics_gfdl     | flag_for_gfdl_microphysics_scheme                                  | choice of GFDL microphysics scheme                                 | flag       |    0 | integer   |           | in     | F        |
 !! | imp_physics_thompson | flag_for_thompson_microphysics_scheme                              | choice of Thompson microphysics scheme                             | flag       |    0 | integer   |           | in     | F        |
 !! | imp_physics_nssl     | flag_for_nssl_microphysics_scheme                                  | choice of NSSL microphysics scheme                                 | flag       |    0 | integer   |           | in     | F        |
+!! | imp_physics_mg       | flag_for_morrison_gettelman_microphysics_scheme                    | choice of Morrison-Gettelman microphysics scheme                   | flag       |    0 | integer   |           | in     | F        |
 !! | con_g                | gravitational_acceleration                                         | gravitational acceleration                                         | m s-2      |    0 | real      | kind_phys | in     | F        |
+!! | con_rd               | gas_constant_dry_air                                               | ideal gas constant for dry air                                     | J kg-1 K-1 |    0 | real      | kind_phys | in     | F        |
 !! | phil                 | geopotential                                                       | geopotential at model layer centers                                | m2 s-2     |    2 | real      | kind_phys | in     | F        |
 !! | gt0                  | air_temperature_updated_by_physics                                 | temperature updated by physics                                     | K          |    2 | real      | kind_phys | in     | F        |
+!! | prsl                 | air_pressure                                                       | mean layer pressure                                                | Pa         |    2 | real      | kind_phys | in     | F        |
+!! | gqgl                 | graupel_mixing_ratio_updated_by_physics                            | moist mixing ratio of graupel updated by physics                   | kg kg-1    |    2 | real      | kind_phys | in     | F        |
+!! | gqhl                 | hail_mixing_ratio_updated_by_physics                               | moist mixing ratio of hail updated by physics                      | kg kg-1    |    2 | real      | kind_phys | in     | F        |
+!! | gngl                 | graupel_number_concentration_updated_by_physics                    | number concentration of graupel updated by physics                 | kg-1       |    2 | real      | kind_phys | in     | F        |
+!! | gnhl                 | hail_number_concentration_updated_by_physics                       | number concentration of hail updated by physics                    | kg-1       |    2 | real      | kind_phys | in     | F        |
+!! | vhl                  | hail_particle_volume                                               | volume of hail particles                                           | m3 kg-1    |    2 | real      | kind_phys | in     | F        |
 !! | refl_10cm            | radar_reflectivity_10cm                                            | instantaneous refl_10cm                                            | dBZ        |    2 | real      | kind_phys | in     | F        |
 !! | refdmax              | maximum_reflectivity_at_1km_agl_over_maximum_hourly_time_interval  | maximum reflectivity at 1km agl over maximum hourly time interval  | dBZ        |    1 | real      | kind_phys | inout  | F        |
 !! | refdmax263k          | maximum_reflectivity_at_minus10c_over_maximum_hourly_time_interval | maximum reflectivity at minus10c over maximum hourly time interval | dBZ        |    1 | real      | kind_phys | inout  | F        |
@@ -66,7 +74,8 @@ contains
 #endif
    subroutine maximum_hourly_diagnostics_run(im, levs, kdt, nsteps_per_reset, lradar, imp_physics, &
                                              imp_physics_gfdl, imp_physics_thompson,               &
-                                             imp_physics_nssl, con_g, phil, gt0, refl_10cm,        &
+                                             imp_physics_nssl, imp_physics_mg, con_g, con_rd,      &
+                                             phil, gt0, prsl, gqgl, gqhl, gngl, gnhl, vhl, refl_10cm, &
                                              refdmax, refdmax263k, u10m, v10m, u10max, v10max,     &
                                              spd10max, meshmax, hmflux01max, hske01max, shcp01max, &
                                              hm01max, hmflux03max, hske03max, shcp03max, hm03max,  &
@@ -76,10 +85,17 @@ contains
        ! Interface variables
        integer, intent(in) :: im, levs, kdt, nsteps_per_reset
        logical, intent(in) :: lradar
-       integer, intent(in) :: imp_physics, imp_physics_gfdl, imp_physics_thompson, imp_physics_nssl
+       integer, intent(in) :: imp_physics, imp_physics_gfdl, imp_physics_thompson, imp_physics_nssl, imp_physics_mg
        real(kind_phys), intent(in   ) :: con_g
+       real(kind_phys), intent(in   ) :: con_rd
        real(kind_phys), intent(in   ) :: phil(im,levs)
        real(kind_phys), intent(in   ) :: gt0(im,levs)
+       real(kind_phys), intent(in   ) :: prsl(im,levs)
+       real(kind_phys), intent(in   ) :: gqgl(im,levs)
+       real(kind_phys), intent(in   ) :: gqhl(im,levs)
+       real(kind_phys), intent(in   ) :: gngl(im,levs)
+       real(kind_phys), intent(in   ) :: gnhl(im,levs)
+       real(kind_phys), intent(in   ) :: vhl(im,levs)
        real(kind_phys), intent(in   ) :: refl_10cm(im,levs)
        real(kind_phys), intent(inout) :: refdmax(im)
        real(kind_phys), intent(inout) :: refdmax263k(im)
@@ -122,7 +138,7 @@ contains
 
 !Calculate hourly max 1-km agl and -10C reflectivity
        if (lradar .and. (imp_physics == imp_physics_gfdl .or. imp_physics == imp_physics_thompson &
-                    .or. imp_physics == imp_physics_nssl)) then
+                    .or. imp_physics == imp_physics_mg .or. imp_physics == imp_physics_nssl)) then
           allocate(refd(im))
           allocate(refd263k(im))
 
@@ -137,9 +153,9 @@ contains
           allocate(hm03(im))
 
           call max_fields(phil,refl_10cm,con_g,im,levs,refd,gt0,refd263k)
-          call hail_diagnostics(im, levs, gt0, phil / con_g, refl_10cm,  &
-                                mesh, hmflux01, hske01, shcp01, hm01,  &
-                                      hmflux03, hske03, shcp03, hm03)
+          call hail_diagnostics(im, levs, imp_physics, imp_physics_thompson, imp_physics_nssl, imp_physics_mg,  &
+                                gt0, prsl, gqgl, gqhl, gngl, gnhl, vhl, phil / con_g, refl_10cm, con_g, con_rd, &
+                                mesh, hmflux01, hske01, shcp01, hm01, hmflux03, hske03, shcp03, hm03)
 
           if(mod(kdtminus1,nsteps_per_reset)==0)then
              do i=1,im
@@ -318,15 +334,29 @@ contains
       enddo
    end subroutine max_fields
 
-   subroutine hail_diagnostics(im, levs, temperature, zh, refl_10cm, &
-                               mesh, hmflux01, hske01, shcp01, hm01, &
-                                     hmflux03, hske03, shcp03, hm03)
+   subroutine hail_diagnostics(im, levs, imp_physics, imp_physics_thompson, imp_physics_nssl, imp_physics_mg, &
+                               temperature, pressure, qg, qh, ng, nh, vh, zh, refl_10cm, g, r_d, mesh,  &
+                               hmflux01, hske01, shcp01, hm01, hmflux03, hske03, shcp03, hm03)
 
-     integer, intent(in) :: im, levs
-     real(kind=kind_phys), dimension(im, levs) :: temperature, zh, refl_10cm
+     use module_mp_radar, only : xam_g, xbm_g, xmu_g
+     use micro_mg_utils, only : rhog_mg => rhog
+
+     integer, intent(in) :: im, levs, imp_physics, imp_physics_thompson, imp_physics_nssl, imp_physics_mg
+     real(kind=kind_phys), intent(in) :: g, r_d
+     real(kind=kind_phys), dimension(im, levs), intent(in) :: temperature, pressure, zh, refl_10cm
+     real(kind=kind_phys), dimension(im, levs), intent(in) :: qg, qh, ng, nh, vh
      real(kind=kind_phys), dimension(im), intent(out) :: mesh
      real(kind=kind_phys), dimension(im), intent(out) :: hmflux01, hske01, shcp01, hm01
      real(kind=kind_phys), dimension(im), intent(out) :: hmflux03, hske03, shcp03, hm03
+
+     real :: temp_hmflux, temp_hske, temp_shcp, temp_hm, mmdiam, fallspd
+     real :: xrho_g, rhoa, mh, dz, temp_qg, temp_ng
+
+     ! Temporary variables for Thompson ng calculation
+     real :: zans1, N0exp, lam_exp, lamg, N0_g, cge(3), cgg(3)
+
+     integer :: i, k, n
+     logical :: output_01_hail
 
      call calc_mesh(im, levs, zh, temperature, refl_10cm, mesh)
 
@@ -338,6 +368,91 @@ contains
      hske03 = 0.0
      shcp03 = 0.0
      hm03 = 0.0
+
+     if (imp_physics == imp_physics_thompson) then
+!      xmu_g = 1.
+       cge(1) = xbm_g + 1.
+       cge(2) = xmu_g + 1.
+       cge(3) = xbm_g + xmu_g + 1.
+       do n = 1, 3
+          cgg(n) = WGAMMA(cge(n))
+       enddo
+     endif
+
+     do i=1,im
+       temp_hmflux = 0
+       temp_hske = 0
+       temp_shcp = 0
+       temp_hm = 0
+
+       output_01_hail = .true.
+
+       do k=1,levs
+         if (zh(i,k) - zh(i,1) > 3000) then
+           exit
+         endif
+
+         if (zh(i,k) - zh(i,1) > 1000 .and. output_01_hail) then
+           hmflux01(i) = temp_hmflux
+           hske01(i) = temp_hske
+           shcp01(i) = temp_shcp
+           hm01(i) = temp_hm
+
+           output_01_hail = .false.
+         endif
+
+         rhoa = pressure(i,k) / (temperature(i,k) * r_d)
+
+         if (imp_physics == imp_physics_thompson) then
+           temp_qg = qg(i,k)
+           mh = temp_qg * rhoa
+
+           if (temp_qg < 1e-6) cycle
+
+           xrho_g = 500.
+
+           zans1 = (2.5 + 2./7. * (alog10(mh)+7.))
+           zans1 = max(2., min(zans1, 7.))
+           N0exp = 10.**zans1
+           lam_exp = (N0exp*xam_g*cgg(1)/mh)**(1./cge(1))
+           lamg = lam_exp * (cgg(3)/cgg(2)/cgg(1))**(1./xbm_g)
+           N0_g = N0exp/(cgg(2)*lam_exp) * lamg**cge(2)
+           temp_ng = N0_g*cgg(2)*lamg**(-cge(2))
+
+         else if (imp_physics == imp_physics_nssl) then
+           temp_qg = qh(i,k)
+           temp_ng = nh(i,k)
+
+           if (temp_qg < 1e-6) cycle
+
+           xrho_g = qh(i,k) / vh(i,k)
+         else if (imp_physics == imp_physics_mg) then
+           temp_qg = qg(i,k)
+           temp_ng = ng(i,k)
+
+           if (temp_qg < 1e-6) cycle
+
+           xrho_g = rhog_mg
+         endif
+
+         call mmdi(rhoa, temp_qg, temp_ng, xrho_g, mmdiam)
+         call ferrier_fallspd(rhoa, temp_qg, temp_ng, 0.0, xrho_g, fallspd)
+
+         mh = temp_qg * rhoa
+         dz = zh(i,k+1) - zh(i,k)
+
+         ! Compute parameters and integrate over a layer
+         temp_hmflux = temp_hmflux + dz * mh * fallspd
+         temp_hske = temp_hske + dz * mh * fallspd * fallspd * 0.5
+         temp_shcp = temp_shcp + dz * mh * fallspd * mmdiam / 1000.0 * g
+         temp_hm = temp_hm + dz * mh
+       enddo
+
+       hmflux03(i) = temp_hmflux
+       hske03(i) = temp_hske
+       shcp03(i) = temp_shcp
+       hm03(i) = temp_hm
+     enddo
 
    end subroutine hail_diagnostics
 

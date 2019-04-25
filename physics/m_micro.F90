@@ -186,6 +186,7 @@ end subroutine m_micro_init
 !! | ncpr_io        | local_rain_number_concentration                                             | number concentration of rain local to physics                                               | kg-1        |    2 | real       | kind_phys | inout  | F        |
 !! | ncps_io        | local_snow_number_concentration                                             | number concentration of snow local to physics                                               | kg-1        |    2 | real       | kind_phys | inout  | F        |
 !! | ncgl_io        | local_graupel_number_concentration                                          | number concentration of graupel local to physics                                            | kg-1        |    2 | real       | kind_phys | inout  | F        |
+!! | refl_10cm_io   | radar_reflectivity_10cm                                                     | instantaneous refl_10cm                                                                     | dBZ         |    2 | real       | kind_phys | out    | F        |
 !! | clls_io        | cloud_fraction_for_MG                                                       | cloud fraction used by Morrison-Gettelman MP                                                | frac        |    2 | real       | kind_phys | inout  | F        |
 !! | kcbl           | vertical_index_at_cloud_base                                                | vertical index at cloud base                                                                | index       |    1 | integer    |           | inout  | F        |
 !! | cldreffl       | effective_radius_of_stratiform_cloud_liquid_water_particle_in_um            | effective radius of cloud liquid water particle in micrometer                               | um          |    2 | real       | kind_phys | out    | F        |
@@ -225,7 +226,7 @@ end subroutine m_micro_init
      &,                         qi_o,     t_io,    rn_o, sr_o           &
      &,                         ncpl_io,  ncpi_io, fprcp, rnw_io, snw_io&
      &,                         qgl_io,   ncpr_io, ncps_io, ncgl_io     &
-     &,                         CLLS_io,  KCBL                          &
+     &,                         refl_10cm_io, CLLS_io,  KCBL            &
      &,                         CLDREFFL, CLDREFFI, CLDREFFR, CLDREFFS  &
      &,                         CLDREFFG, aerfld_i                      &
      &,                         aero_in,  naai_i, npccn_i, iccn         &
@@ -311,7 +312,8 @@ end subroutine m_micro_init
      &                                             ncpl_io,ncpi_io,CLLS_io
        real (kind=kind_phys),dimension(im,lm),intent(inout):: rnw_io,snw_io,&
      &                                             ncpr_io, ncps_io,        &
-     &                                             qgl_io,  ncgl_io
+     &                                             qgl_io,  ncgl_io,        &
+     &                                             refl_10cm_io
 !Moo   real (kind=kind_phys),dimension(im,lm),intent(inout):: CLLS_io
 
 
@@ -336,6 +338,7 @@ end subroutine m_micro_init
      & SIGW_GW,SIGW_CNV,SIGW_TURB,                                      &
 !    & SIGW_GW,SIGW_CNV,SIGW_TURB,SIGW_RC,REV_CN_X,REV_LS_X,            &
      &                                     rnw,snw,ncpr,ncps,qgl,ncgl,  &
+     &                                                      refl_10cm,  &
 !    & RSU_LS_X, ALPHT_X, DLPDF_X, DIPDF_X,rnw,snw,ncpr,ncps,qgl,ncgl,  &
 !    & ACLL_CN_X,ACIL_CN_X, PFRZ, FQA,QCNTOT,QTOT,QL_TOT,qi_tot,blk_l,rhc
      &                            FQA,QL_TOT,qi_tot,blk_l,rhc
@@ -1695,6 +1698,7 @@ end subroutine m_micro_init
               NCPR(I,k)     = max(NCPR(I,k) + nrtend(k)*dt_r8,   0.0)
               NCPS(I,k)     = max(NCPS(I,k) + nstend(k)*dt_r8,   0.0)
               NCGL(I,k)     = max(NCGL(I,k) + ngtend(k)*dt_r8,   0.0)
+              REFL_10CM(I,k) = refl(k)
 
               CLDREFFL(I,k) = min(max(effcr8(k), 10.),150.)
               CLDREFFI(I,k) = min(max(effir8(k), 20.),150.)
@@ -1784,6 +1788,7 @@ end subroutine m_micro_init
              ncpr_io(i,k) = NCPR(i,ll)
              ncps_io(i,k) = NCPS(i,ll)
              ncgl_io(i,k) = NCGL(i,ll)
+             refl_10cm_io(i,k) = REFL_10CM(i,ll)
              lwm_o(i,k)   = QL_TOT(i,ll)
              qi_o(i,k)    = QI_TOT(i,ll)
            END DO
@@ -1810,6 +1815,7 @@ end subroutine m_micro_init
              ncpr_io(i,k) = NCPR(i,k)
              ncps_io(i,k) = NCPS(i,k)
              ncgl_io(i,k) = NCGL(i,k)
+             refl_10cm_io(i,k) = REFL_10CM(i,k)
              lwm_o(i,k)   = QL_TOT(i,k)
              qi_o(i,k)    = QI_TOT(i,k)
            END DO

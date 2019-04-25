@@ -394,6 +394,7 @@ contains
          qi      = qi_mp/(1.0_kind_phys+qv_mp)
          qs      = qs_mp/(1.0_kind_phys+qv_mp)
          qg      = qg_mp/(1.0_kind_phys+qv_mp)         
+         qh      = qh_mp/(1.0_kind_phys+qv_mp)         
 
          prcp    = max(0.0, delta_rain_mp/1000.0_kind_phys)
          graupel = max(0.0, delta_graupel_mp/1000.0_kind_phys)
